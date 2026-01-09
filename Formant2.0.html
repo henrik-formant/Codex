@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Formant 2.0 – Triage Board Demo</title>
+<style>
+  :root {
+    --bg: #0f1320;
+    --panel: #141a2a;
+    --panel-2: #0b1020;
+    --card: #1b243a;
+    --muted: #9aa4b2;
+    --text: #e6ecf2;
+    --accent: #4cc9f0;
+    --accent-2: #a78bfa;
+    --good: #2dd4bf;
+    --warn: #f59e0b;
+    --bad: #ef4444;
+    --shadow: 0 8px 22px rgba(0,0,0,0.25);
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; font-family: "Inter", system-ui, -apple-system, Segoe UI, sans-serif; background: var(--bg); color: var(--text); }
+  #app { display: grid; grid-template-columns: 280px 1fr 360px; gap: 16px; height: 100vh; padding: 16px; }
+  header { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; }
+  .brand { display: flex; gap: 10px; align-items: center; }
+  .logo { width: 36px; height: 36px; border-radius: 12px; background: linear-gradient(135deg, #4cc9f0, #a78bfa); display: grid; place-items: center; font-weight: 700; color: #05121f; }
+  .pill { padding: 4px 10px; border-radius: 999px; background: rgba(76,201,240,0.12); color: var(--accent); font-size: 12px; }
+  .left, .center, .right { background: var(--panel); border-radius: var(--radius); padding: 14px; box-shadow: var(--shadow); min-height: 0; }
+  .left { display: flex; flex-direction: column; gap: 14px; }
+  .section-title { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .selector { display: flex; flex-direction: column; gap: 8px; }
+  select, input[type="text"], input[type="range"], button {
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid #293049;
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+  button { cursor: pointer; transition: transform 0.1s ease, background 0.2s ease; }
+  button:hover { transform: translateY(-1px); background: #202a44; }
+  .filter-group { display: grid; gap: 8px; }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { padding: 6px 10px; border-radius: 999px; background: #1d2740; color: var(--muted); font-size: 12px; cursor: pointer; border: 1px solid transparent; }
+  .chip.active { border-color: var(--accent); color: var(--text); }
+  .center { display: flex; flex-direction: column; gap: 12px; }
+  .board { display: grid; grid-template-columns: repeat(4, minmax(220px, 1fr)); gap: 10px; overflow: auto; padding-bottom: 8px; }
+  .column { background: var(--panel-2); border-radius: 12px; padding: 10px; min-height: 400px; display: flex; flex-direction: column; gap: 10px; }
+  .column h3 { margin: 0; font-size: 14px; color: var(--muted); display: flex; justify-content: space-between; }
+  .card { background: var(--card); border-radius: 12px; padding: 10px; display: grid; gap: 6px; border: 1px solid #2a3350; cursor: grab; }
+  .card[draggable="true"]:active { cursor: grabbing; }
+  .meta { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--muted); }
+  .severity { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .severity.Low { background: rgba(45,212,191,0.15); color: var(--good); }
+  .severity.Med { background: rgba(245,158,11,0.2); color: var(--warn); }
+  .severity.High { background: rgba(239,68,68,0.18); color: var(--bad); }
+  .severity.Critical { background: rgba(239,68,68,0.35); color: #fecaca; }
+  .card-title { font-weight: 600; }
+  .rec { font-size: 12px; color: var(--accent); }
+  .right { display: grid; grid-template-rows: auto 1fr auto; gap: 10px; }
+  .agent-status { display: flex; align-items: center; justify-content: space-between; background: #111729; border-radius: 12px; padding: 10px; }
+  .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 rgba(45,212,191,0.6); animation: pulse 1.8s infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(45,212,191,0.6); } 70% { box-shadow: 0 0 0 10px rgba(45,212,191,0); } 100% { box-shadow: 0 0 0 0 rgba(45,212,191,0); } }
+  .feed { overflow: auto; display: grid; gap: 8px; }
+  .feed-item { background: #151c2f; border-radius: 10px; padding: 8px; font-size: 12px; color: var(--muted); }
+  .feed-item a { color: var(--accent); text-decoration: none; }
+  .explain { background: #111729; border-radius: 12px; padding: 10px; font-size: 13px; color: var(--muted); }
+  .telemetry { background: #101827; border-radius: 12px; padding: 10px; display: grid; gap: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; color: var(--muted); }
+  th, td { text-align: left; padding: 4px 2px; border-bottom: 1px solid #1b243a; }
+  .sparkline { width: 100%; height: 60px; background: #0d1322; border-radius: 8px; }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; }
+  .drawer { position: fixed; right: 20px; top: 80px; width: 360px; max-height: 82vh; background: var(--panel); border-radius: 16px; box-shadow: var(--shadow); padding: 12px; display: none; flex-direction: column; gap: 10px; overflow: auto; }
+  .drawer.open { display: flex; }
+  .timeline { display: grid; gap: 6px; }
+  .timeline-item { background: #151c2f; border-radius: 10px; padding: 6px; font-size: 12px; color: var(--muted); }
+  .metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; font-size: 12px; }
+  .metric { background: #151c2f; border-radius: 8px; padding: 6px; }
+  .playbook { display: grid; gap: 6px; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1d2740; color: var(--text); padding: 10px 14px; border-radius: 12px; box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+  .toast.show { opacity: 1; }
+  .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .small { font-size: 12px; color: var(--muted); }
+  .link-button { background: none; border: none; color: var(--accent); cursor: pointer; padding: 0; font-size: 12px; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">F2</div>
+    <div>
+      <div style="font-weight:700;">Formant 2.0</div>
+      <div class="small">Physical Ops Triage Board</div>
+    </div>
+  </div>
+  <div class="toolbar">
+    <span class="pill">Live Demo</span>
+    <label class="toggle"><input id="autoResolveToggle" type="checkbox" checked /> Auto-resolve</label>
+    <label class="toggle">Anomaly rate <input id="anomalyRate" type="range" min="1" max="10" value="4" /></label>
+    <button id="resetBtn">Reset demo</button>
+  </div>
+</header>
+<div id="app">
+  <aside class="left" aria-label="Filters">
+    <div class="selector">
+      <div class="section-title">Facilities / Fleets</div>
+      <select id="facilitySelect" aria-label="Select facility">
+        <option value="all">All Facilities</option>
+      </select>
+    </div>
+    <div class="selector">
+      <div class="section-title">Quick Filters</div>
+      <div class="chip-row" id="severityFilters">
+        <div class="chip" data-sev="Low">Low</div>
+        <div class="chip" data-sev="Med">Med</div>
+        <div class="chip" data-sev="High">High</div>
+        <div class="chip" data-sev="Critical">Critical</div>
+      </div>
+      <div class="chip-row" id="assetFilters">
+        <div class="chip" data-type="Robot">Robot</div>
+        <div class="chip" data-type="Pump">Pump</div>
+        <div class="chip" data-type="Conveyor">Conveyor</div>
+        <div class="chip" data-type="HVAC">HVAC</div>
+        <div class="chip" data-type="Forklift">Forklift</div>
+        <div class="chip" data-type="AMR">AMR</div>
+      </div>
+      <label class="toggle"><input id="assignedToggle" type="checkbox" /> Assigned to me</label>
+      <input id="searchInput" type="text" placeholder="Search incidents" aria-label="Search incidents" />
+    </div>
+    <div class="selector">
+      <div class="section-title">Data Source</div>
+      <select id="dataSource">
+        <option value="sim">Simulated</option>
+        <option value="ws">WebSocket</option>
+      </select>
+      <input id="wsUrl" type="text" placeholder="ws://localhost:8080" class="hidden" />
+      <div class="controls">
+        <button id="connectBtn" class="hidden">Connect</button>
+        <button id="disconnectBtn" class="hidden">Disconnect</button>
+      </div>
+      <div id="wsStatus" class="small"></div>
+    </div>
+  </aside>
+
+  <main class="center" aria-label="Triage board">
+    <div class="section-title">Triage Board</div>
+    <div class="board" id="board">
+      <div class="column" data-status="New">
+        <h3>New <span id="count-New">0</span></h3>
+      </div>
+      <div class="column" data-status="Investigating">
+        <h3>Investigating <span id="count-Investigating">0</span></h3>
+      </div>
+      <div class="column" data-status="Mitigating">
+        <h3>Mitigating <span id="count-Mitigating">0</span></h3>
+      </div>
+      <div class="column" data-status="Resolved">
+        <h3>Resolved <span id="count-Resolved">0</span></h3>
+      </div>
+    </div>
+  </main>
+
+  <aside class="right" aria-label="Agent and telemetry">
+    <div class="agent-status">
+      <div>
+        <div style="font-weight:600;">Agent</div>
+        <div class="small" id="agentStatus">Listening to live stream…</div>
+      </div>
+      <div class="pulse" aria-hidden="true"></div>
+    </div>
+    <div class="feed" id="activityFeed"></div>
+    <div class="explain" id="explainBox">Select an incident to see reasoning.</div>
+    <div class="telemetry">
+      <div style="font-weight:600;">Live Telemetry</div>
+      <canvas id="sparkline" class="sparkline" aria-label="Telemetry sparkline"></canvas>
+      <table>
+        <thead>
+          <tr>
+            <th>Time</th><th>Asset</th><th>Temp</th><th>Vib</th><th>Battery</th>
+          </tr>
+        </thead>
+        <tbody id="telemetryTable"></tbody>
+      </table>
+    </div>
+  </aside>
+</div>
+
+<div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="Incident details">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <div>
+      <div id="drawerTitle" style="font-weight:700;"></div>
+      <div id="drawerMeta" class="small"></div>
+    </div>
+    <button id="closeDrawer">Close</button>
+  </div>
+  <div class="metrics" id="drawerMetrics"></div>
+  <div>
+    <div class="section-title">Timeline</div>
+    <div class="timeline" id="drawerTimeline"></div>
+  </div>
+  <div>
+    <div class="section-title">Recommended Playbook</div>
+    <div class="playbook">
+      <button data-action="ack">Acknowledge</button>
+      <button data-action="assign">Assign to me</button>
+      <button data-action="playbook">Run playbook</button>
+      <button data-action="resolve">Resolve</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const facilities = [
+    { id: 'reno', name: 'Reno DC' },
+    { id: 'austin', name: 'Austin Fab' },
+    { id: 'rotterdam', name: 'Rotterdam Port' }
+  ];
+  const assets = [
+    { id: 'rbt-01', type: 'Robot', facilityId: 'reno' },
+    { id: 'rbt-02', type: 'Robot', facilityId: 'reno' },
+    { id: 'amr-03', type: 'AMR', facilityId: 'reno' },
+    { id: 'pump-01', type: 'Pump', facilityId: 'austin' },
+    { id: 'pump-02', type: 'Pump', facilityId: 'austin' },
+    { id: 'conv-01', type: 'Conveyor', facilityId: 'austin' },
+    { id: 'hvac-01', type: 'HVAC', facilityId: 'rotterdam' },
+    { id: 'fork-01', type: 'Forklift', facilityId: 'rotterdam' },
+    { id: 'amr-09', type: 'AMR', facilityId: 'rotterdam' },
+    { id: 'conv-02', type: 'Conveyor', facilityId: 'reno' },
+    { id: 'fork-02', type: 'Forklift', facilityId: 'austin' },
+    { id: 'hvac-02', type: 'HVAC', facilityId: 'reno' }
+  ];
+
+  const state = {
+    incidents: [],
+    telemetry: [],
+    activity: [],
+    lastEventAt: Date.now(),
+    selectedIncidentId: null,
+    filters: { severity: new Set(), assetType: new Set(), assignedToMe: false, search: '', facility: 'all' },
+    autoResolve: true,
+    anomalyRate: 4,
+    dataSource: 'sim',
+    ws: null,
+    wsConnected: false
+  };
+
+  const storageKey = 'formant2_incidents';
+
+  const facilitySelect = document.getElementById('facilitySelect');
+  facilities.forEach(f => {
+    const opt = document.createElement('option');
+    opt.value = f.id; opt.textContent = f.name; facilitySelect.appendChild(opt);
+  });
+
+  function saveState() {
+    localStorage.setItem(storageKey, JSON.stringify(state.incidents));
+  }
+
+  function loadState() {
+    const raw = localStorage.getItem(storageKey);
+    if (raw) {
+      try { state.incidents = JSON.parse(raw); } catch (e) { state.incidents = []; }
+    }
+  }
+
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  function nowLabel(ts) {
+    const diff = Math.max(0, Date.now() - ts);
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return `${Math.floor(diff / 1000)}s ago`;
+    if (mins < 60) return `${mins}m ago`;
+    return `${Math.floor(mins / 60)}h ago`;
+  }
+
+  function metricBase(type) {
+    switch(type) {
+      case 'Pump': return { temperatureC: 42, vibration: 0.6, batteryPct: 90, pressurePsi: 68, throughput: 120 };
+      case 'Conveyor': return { temperatureC: 38, vibration: 0.4, batteryPct: 80, pressurePsi: 50, throughput: 180 };
+      case 'HVAC': return { temperatureC: 26, vibration: 0.3, batteryPct: 100, pressurePsi: 40, throughput: 90 };
+      case 'Forklift': return { temperatureC: 34, vibration: 0.5, batteryPct: 70, pressurePsi: 45, throughput: 110 };
+      case 'AMR': return { temperatureC: 30, vibration: 0.4, batteryPct: 75, pressurePsi: 35, throughput: 140 };
+      default: return { temperatureC: 36, vibration: 0.5, batteryPct: 85, pressurePsi: 55, throughput: 130 };
+    }
+  }
+
+  const rolling = new Map();
+
+  function pushRolling(assetId, metric) {
+    if (!rolling.has(assetId)) rolling.set(assetId, []);
+    const arr = rolling.get(assetId);
+    arr.push(metric);
+    const cutoff = Date.now() - 180000;
+    while (arr.length && arr[0].ts < cutoff) arr.shift();
+  }
+
+  function calcStats(arr, key) {
+    const vals = arr.map(x => x[key]).filter(v => typeof v === 'number');
+    if (!vals.length) return { avg: 0, sd: 0 };
+    const avg = vals.reduce((a,b) => a+b,0)/vals.length;
+    const sd = Math.sqrt(vals.reduce((a,b) => a + Math.pow(b-avg,2),0)/vals.length);
+    return { avg, sd };
+  }
+
+  function anomalyCheck(asset, m) {
+    const history = rolling.get(asset.id) || [];
+    const statsTemp = calcStats(history, 'temperatureC');
+    const statsVib = calcStats(history, 'vibration');
+    const statsBattery = calcStats(history, 'batteryPct');
+    const statsPressure = calcStats(history, 'pressurePsi');
+
+    const reasons = [];
+    let severity = 'Low';
+    let type = 'general';
+
+    if (m.vibration > statsVib.avg + 2*statsVib.sd && m.temperatureC > statsTemp.avg + 8) {
+      severity = 'High';
+      type = 'vibration-heat';
+      reasons.push('Vibration spike with rising temperature');
+    }
+    if (m.batteryPct < statsBattery.avg - 15 && m.batteryPct < 35) {
+      severity = 'Med';
+      type = 'battery-drain';
+      reasons.push('Rapid battery drain below 35%');
+    }
+    if (Math.abs(m.pressurePsi - statsPressure.avg) > 18 && statsPressure.avg > 0) {
+      severity = severity === 'High' ? 'High' : 'Med';
+      type = 'pressure-oscillation';
+      reasons.push('Pressure oscillation beyond baseline');
+    }
+    if (m.throughput < 40) {
+      severity = 'Critical';
+      type = 'throughput-collapse';
+      reasons.push('Throughput collapse detected');
+    }
+
+    if (!reasons.length) return null;
+    return { severity, type, reasons };
+  }
+
+  function recommendAction(severity, type) {
+    if (severity === 'Critical') return 'Dispatch on-site response + pause line';
+    if (type === 'battery-drain') return 'Swap battery pack and inspect charger';
+    if (type === 'pressure-oscillation') return 'Check valve + calibrate sensor';
+    if (type === 'vibration-heat') return 'Inspect bearings + thermal check';
+    return 'Run diagnostics and monitor';
+  }
+
+  function createIncident(asset, facility, anomaly, m) {
+    const existing = state.incidents.find(i => i.assetId === asset.id && i.type === anomaly.type && (Date.now() - i.createdAt) < 6 * 60000);
+    if (existing) {
+      existing.lastUpdated = Date.now();
+      existing.severity = anomaly.severity;
+      existing.metrics = m;
+      existing.reasoning = anomaly.reasons.join('; ');
+      existing.recommended = recommendAction(anomaly.severity, anomaly.type);
+      existing.timeline.push({ ts: Date.now(), text: `Agent updated: ${existing.reasoning}` });
+      return existing;
+    }
+
+    const incident = {
+      id: `inc-${Date.now()}-${Math.floor(Math.random()*999)}`,
+      assetId: asset.id,
+      assetType: asset.type,
+      facilityId: facility.id,
+      facilityName: facility.name,
+      severity: anomaly.severity,
+      summary: `${asset.type} anomaly: ${anomaly.type.replace('-', ' ')}`,
+      recommended: recommendAction(anomaly.severity, anomaly.type),
+      status: 'New',
+      createdAt: Date.now(),
+      lastUpdated: Date.now(),
+      assignedToMe: false,
+      confidence: Math.round(70 + Math.random()*20),
+      reasoning: anomaly.reasons.join('; '),
+      metrics: m,
+      timeline: [{ ts: Date.now(), text: `Incident created: ${anomaly.reasons.join(', ')}` }]
+    };
+    state.incidents.unshift(incident);
+    state.activity.unshift({ ts: Date.now(), text: `Flagged ${asset.id} (${incident.severity})`, incidentId: incident.id });
+    if (state.activity.length > 20) state.activity.pop();
+    toast(`New ${incident.severity} incident: ${asset.id}`);
+    saveState();
+  }
+
+  function updateIncidentAutoResolve() {
+    if (!state.autoResolve) return;
+    state.incidents.forEach(inc => {
+      if (inc.status === 'Resolved') return;
+      const history = rolling.get(inc.assetId) || [];
+      if (!history.length) return;
+      const statsTemp = calcStats(history, 'temperatureC');
+      const statsVib = calcStats(history, 'vibration');
+      const latest = history[history.length-1];
+      if (latest.temperatureC < statsTemp.avg + 3 && latest.vibration < statsVib.avg + 0.4) {
+        if (!inc.normalSince) inc.normalSince = Date.now();
+        if (Date.now() - inc.normalSince > 60000) {
+          inc.status = 'Resolved';
+          inc.timeline.push({ ts: Date.now(), text: 'Auto-resolved after sustained normal metrics' });
+        }
+      } else {
+        inc.normalSince = null;
+      }
+    });
+  }
+
+  function renderBoard() {
+    document.querySelectorAll('.column').forEach(col => col.querySelectorAll('.card').forEach(c => c.remove()));
+    const filtered = state.incidents.filter(i => {
+      const f = state.filters;
+      if (f.facility !== 'all' && i.facilityId !== f.facility) return false;
+      if (f.severity.size && !f.severity.has(i.severity)) return false;
+      if (f.assetType.size && !f.assetType.has(i.assetType)) return false;
+      if (f.assignedToMe && !i.assignedToMe) return false;
+      if (f.search && !`${i.summary} ${i.assetId} ${i.facilityName}`.toLowerCase().includes(f.search)) return false;
+      return true;
+    });
+
+    const counts = { New: 0, Investigating: 0, Mitigating: 0, Resolved: 0 };
+    filtered.forEach(inc => {
+      counts[inc.status] = (counts[inc.status] || 0) + 1;
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.draggable = true;
+      card.dataset.id = inc.id;
+      card.innerHTML = `
+        <div class="meta"><span class="severity ${inc.severity}">${inc.severity}</span><span>${inc.assetId}</span></div>
+        <div class="card-title">${inc.summary}</div>
+        <div class="small">${inc.facilityName} • ${nowLabel(inc.createdAt)}</div>
+        <div class="rec">${inc.recommended}</div>
+      `;
+      card.addEventListener('click', () => openDrawer(inc.id));
+      card.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/plain', inc.id);
+      });
+      const col = document.querySelector(`.column[data-status="${inc.status}"]`);
+      if (col) col.appendChild(card);
+    });
+
+    Object.keys(counts).forEach(k => {
+      const el = document.getElementById(`count-${k}`);
+      if (el) el.textContent = counts[k];
+    });
+  }
+
+  function renderActivity() {
+    const feed = document.getElementById('activityFeed');
+    feed.innerHTML = '';
+    state.activity.slice(0, 20).forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'feed-item';
+      const link = item.incidentId ? `<a href="#" data-id="${item.incidentId}">View</a>` : '';
+      div.innerHTML = `<div>${new Date(item.ts).toLocaleTimeString()} • ${item.text} ${link}</div>`;
+      div.querySelectorAll('a').forEach(a => a.addEventListener('click', e => {
+        e.preventDefault();
+        openDrawer(item.incidentId);
+      }));
+      feed.appendChild(div);
+    });
+  }
+
+  function renderExplain() {
+    const box = document.getElementById('explainBox');
+    const inc = state.incidents.find(i => i.id === state.selectedIncidentId);
+    if (!inc) {
+      box.textContent = 'Select an incident to see reasoning.';
+      return;
+    }
+    box.innerHTML = `<strong>Reasoning:</strong> ${inc.reasoning}<br><span class="small">Confidence ${inc.confidence}% • ${inc.recommended}</span>`;
+  }
+
+  function renderTelemetry() {
+    const table = document.getElementById('telemetryTable');
+    table.innerHTML = '';
+    state.telemetry.slice(0, 10).forEach(ev => {
+      const row = document.createElement('tr');
+      row.innerHTML = `<td>${new Date(ev.ts).toLocaleTimeString()}</td><td>${ev.assetId}</td><td>${ev.metrics.temperatureC.toFixed(1)}</td><td>${ev.metrics.vibration.toFixed(2)}</td><td>${Math.round(ev.metrics.batteryPct)}%</td>`;
+      table.appendChild(row);
+    });
+  }
+
+  function drawSparkline() {
+    const canvas = document.getElementById('sparkline');
+    const ctx = canvas.getContext('2d');
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    canvas.width = width; canvas.height = height;
+    ctx.clearRect(0,0,width,height);
+    ctx.strokeStyle = '#4cc9f0';
+    ctx.lineWidth = 2;
+    const data = state.telemetry.slice(0, 20).map(ev => ev.metrics.temperatureC).reverse();
+    if (!data.length) return;
+    const min = Math.min(...data) - 2;
+    const max = Math.max(...data) + 2;
+    ctx.beginPath();
+    data.forEach((val, idx) => {
+      const x = (idx/(data.length-1)) * (width-10) + 5;
+      const y = height - ((val - min)/(max-min)) * (height-10) - 5;
+      if (idx === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+  }
+
+  function renderDrawer(inc) {
+    document.getElementById('drawerTitle').textContent = inc.summary;
+    document.getElementById('drawerMeta').textContent = `${inc.assetId} • ${inc.facilityName} • ${inc.severity}`;
+    const metrics = document.getElementById('drawerMetrics');
+    metrics.innerHTML = '';
+    const m = inc.metrics || {};
+    const entries = [
+      ['Temperature', `${m.temperatureC?.toFixed(1) ?? '-'} °C`],
+      ['Vibration', `${m.vibration?.toFixed(2) ?? '-'} g`],
+      ['Battery', `${Math.round(m.batteryPct ?? 0)} %`],
+      ['Pressure', `${m.pressurePsi?.toFixed(1) ?? '-'} psi`],
+      ['Throughput', `${m.throughput ?? '-'} /min`],
+      ['Confidence', `${inc.confidence}%`]
+    ];
+    entries.forEach(([k,v]) => {
+      const div = document.createElement('div');
+      div.className = 'metric';
+      div.innerHTML = `<div class="small">${k}</div><div>${v}</div>`;
+      metrics.appendChild(div);
+    });
+
+    const timeline = document.getElementById('drawerTimeline');
+    timeline.innerHTML = '';
+    inc.timeline.slice().reverse().forEach(t => {
+      const div = document.createElement('div');
+      div.className = 'timeline-item';
+      div.textContent = `${new Date(t.ts).toLocaleTimeString()} • ${t.text}`;
+      timeline.appendChild(div);
+    });
+  }
+
+  function openDrawer(id) {
+    const inc = state.incidents.find(i => i.id === id);
+    if (!inc) return;
+    state.selectedIncidentId = id;
+    renderDrawer(inc);
+    renderExplain();
+    document.getElementById('drawer').classList.add('open');
+  }
+
+  document.getElementById('closeDrawer').addEventListener('click', () => {
+    document.getElementById('drawer').classList.remove('open');
+  });
+
+  document.querySelectorAll('.playbook button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const action = btn.dataset.action;
+      const inc = state.incidents.find(i => i.id === state.selectedIncidentId);
+      if (!inc) return;
+      if (action === 'ack') {
+        inc.timeline.push({ ts: Date.now(), text: 'Acknowledged by operator' });
+      }
+      if (action === 'assign') {
+        inc.assignedToMe = true;
+        inc.timeline.push({ ts: Date.now(), text: 'Assigned to you' });
+      }
+      if (action === 'playbook') {
+        inc.status = 'Mitigating';
+        inc.timeline.push({ ts: Date.now(), text: 'Playbook executed: diagnostics + isolation' });
+      }
+      if (action === 'resolve') {
+        inc.status = 'Resolved';
+        inc.timeline.push({ ts: Date.now(), text: 'Resolved by operator' });
+      }
+      inc.lastUpdated = Date.now();
+      saveState();
+      renderBoard();
+      renderDrawer(inc);
+      renderExplain();
+    });
+  });
+
+  document.querySelectorAll('.column').forEach(col => {
+    col.addEventListener('dragover', e => e.preventDefault());
+    col.addEventListener('drop', e => {
+      const id = e.dataTransfer.getData('text/plain');
+      const inc = state.incidents.find(i => i.id === id);
+      if (inc) {
+        inc.status = col.dataset.status;
+        inc.timeline.push({ ts: Date.now(), text: `Moved to ${inc.status}` });
+        inc.lastUpdated = Date.now();
+        saveState();
+        renderBoard();
+      }
+    });
+  });
+
+  function handleTelemetry(ev) {
+    state.telemetry.unshift(ev);
+    if (state.telemetry.length > 50) state.telemetry.pop();
+    state.lastEventAt = Date.now();
+    pushRolling(ev.assetId, { ts: ev.ts, ...ev.metrics });
+    const asset = assets.find(a => a.id === ev.assetId);
+    const facility = facilities.find(f => f.id === ev.facilityId);
+    const anomaly = anomalyCheck(asset, ev.metrics);
+    if (anomaly) createIncident(asset, facility, anomaly, ev.metrics);
+    updateIncidentAutoResolve();
+    renderTelemetry();
+    drawSparkline();
+    renderBoard();
+    renderActivity();
+    renderExplain();
+    document.getElementById('agentStatus').textContent = `Listening to live stream… last event: ${Date.now() - state.lastEventAt} ms ago`;
+  }
+
+  function randomTelemetry() {
+    const asset = assets[Math.floor(Math.random() * assets.length)];
+    const base = metricBase(asset.type);
+    const rate = state.anomalyRate;
+    const jitter = (val, spread) => val + (Math.random() * spread - spread/2);
+    let metrics = {
+      temperatureC: jitter(base.temperatureC, 4),
+      vibration: Math.max(0, jitter(base.vibration, 0.3)),
+      batteryPct: Math.max(10, jitter(base.batteryPct, 6)),
+      pressurePsi: Math.max(15, jitter(base.pressurePsi, 6)),
+      throughput: Math.max(20, Math.round(jitter(base.throughput, 20)))
+    };
+
+    if (Math.random() < rate / 20) {
+      const pattern = Math.floor(Math.random() * 4);
+      if (pattern === 0) {
+        metrics.vibration += 1.5;
+        metrics.temperatureC += 12;
+      }
+      if (pattern === 1) {
+        metrics.batteryPct -= 30;
+      }
+      if (pattern === 2) {
+        metrics.pressurePsi += 25;
+      }
+      if (pattern === 3) {
+        metrics.throughput = 20;
+      }
+      metrics.errorCodes = ['E-217'];
+    }
+
+    return {
+      ts: Date.now(),
+      facilityId: asset.facilityId,
+      assetId: asset.id,
+      assetType: asset.type,
+      metrics
+    };
+  }
+
+  let simTimer = null;
+  function startSimulation() {
+    if (simTimer) return;
+    const tick = () => {
+      handleTelemetry(randomTelemetry());
+      const delay = 250 + Math.random() * 750;
+      simTimer = setTimeout(tick, delay);
+    };
+    tick();
+  }
+
+  function stopSimulation() {
+    if (simTimer) clearTimeout(simTimer);
+    simTimer = null;
+  }
+
+  function setupFilters() {
+    document.getElementById('severityFilters').addEventListener('click', e => {
+      if (e.target.classList.contains('chip')) {
+        const sev = e.target.dataset.sev;
+        e.target.classList.toggle('active');
+        if (state.filters.severity.has(sev)) state.filters.severity.delete(sev); else state.filters.severity.add(sev);
+        renderBoard();
+      }
+    });
+    document.getElementById('assetFilters').addEventListener('click', e => {
+      if (e.target.classList.contains('chip')) {
+        const type = e.target.dataset.type;
+        e.target.classList.toggle('active');
+        if (state.filters.assetType.has(type)) state.filters.assetType.delete(type); else state.filters.assetType.add(type);
+        renderBoard();
+      }
+    });
+    document.getElementById('assignedToggle').addEventListener('change', e => {
+      state.filters.assignedToMe = e.target.checked;
+      renderBoard();
+    });
+    document.getElementById('searchInput').addEventListener('input', e => {
+      state.filters.search = e.target.value.toLowerCase();
+      renderBoard();
+    });
+    facilitySelect.addEventListener('change', e => {
+      state.filters.facility = e.target.value;
+      renderBoard();
+    });
+  }
+
+  document.getElementById('autoResolveToggle').addEventListener('change', e => {
+    state.autoResolve = e.target.checked;
+  });
+  document.getElementById('anomalyRate').addEventListener('input', e => {
+    state.anomalyRate = parseInt(e.target.value, 10);
+  });
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    localStorage.removeItem(storageKey);
+    state.incidents = [];
+    state.activity = [];
+    renderBoard();
+    renderActivity();
+    toast('Demo reset');
+  });
+
+  function setupDataSource() {
+    const dataSource = document.getElementById('dataSource');
+    const wsUrl = document.getElementById('wsUrl');
+    const connectBtn = document.getElementById('connectBtn');
+    const disconnectBtn = document.getElementById('disconnectBtn');
+    const wsStatus = document.getElementById('wsStatus');
+
+    function updateUI() {
+      const isWs = dataSource.value === 'ws';
+      wsUrl.classList.toggle('hidden', !isWs);
+      connectBtn.classList.toggle('hidden', !isWs);
+      disconnectBtn.classList.toggle('hidden', !isWs);
+      wsStatus.textContent = isWs ? (state.wsConnected ? 'Connected' : 'Not connected') : '';
+    }
+
+    dataSource.addEventListener('change', () => {
+      state.dataSource = dataSource.value;
+      if (state.dataSource === 'sim') {
+        if (state.ws) state.ws.close();
+        stopSimulation();
+        startSimulation();
+      } else {
+        stopSimulation();
+      }
+      updateUI();
+    });
+
+    connectBtn.addEventListener('click', () => {
+      if (!wsUrl.value) return;
+      try {
+        state.ws = new WebSocket(wsUrl.value);
+        state.ws.onopen = () => {
+          state.wsConnected = true;
+          wsStatus.textContent = 'Connected';
+        };
+        state.ws.onmessage = ev => {
+          try {
+            const data = JSON.parse(ev.data);
+            if (data && data.metrics) handleTelemetry(data);
+          } catch (e) {
+            wsStatus.textContent = 'Bad data format';
+          }
+        };
+        state.ws.onerror = () => {
+          wsStatus.textContent = 'Connection error, falling back to simulation';
+          state.wsConnected = false;
+          stopSimulation();
+          startSimulation();
+        };
+        state.ws.onclose = () => {
+          state.wsConnected = false;
+          wsStatus.textContent = 'Disconnected';
+        };
+      } catch (e) {
+        wsStatus.textContent = 'Failed to connect, using simulation';
+        startSimulation();
+      }
+    });
+
+    disconnectBtn.addEventListener('click', () => {
+      if (state.ws) state.ws.close();
+      state.wsConnected = false;
+      wsStatus.textContent = 'Disconnected';
+      if (state.dataSource === 'ws') startSimulation();
+    });
+
+    updateUI();
+  }
+
+  function init() {
+    loadState();
+    renderBoard();
+    renderActivity();
+    renderTelemetry();
+    setupFilters();
+    setupDataSource();
+    startSimulation();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
