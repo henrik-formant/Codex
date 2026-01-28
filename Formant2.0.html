@@ -3,804 +3,740 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Formant 2.0 – Triage Board Demo</title>
+<title>Solarpunk Tetris</title>
 <style>
   :root {
-    --bg: #0f1320;
-    --panel: #141a2a;
-    --panel-2: #0b1020;
-    --card: #1b243a;
-    --muted: #9aa4b2;
-    --text: #e6ecf2;
-    --accent: #4cc9f0;
-    --accent-2: #a78bfa;
-    --good: #2dd4bf;
-    --warn: #f59e0b;
-    --bad: #ef4444;
-    --shadow: 0 8px 22px rgba(0,0,0,0.25);
-    --radius: 14px;
+    --bg: #0a1410;
+    --bg-2: #0f2416;
+    --panel: rgba(16, 39, 28, 0.88);
+    --panel-2: rgba(20, 52, 36, 0.92);
+    --text: #f4ffe9;
+    --muted: #a8c4a1;
+    --accent: #70e39b;
+    --accent-2: #f5d76e;
+    --glow: 0 0 18px rgba(112, 227, 155, 0.35);
+    --shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
   }
+
   * { box-sizing: border-box; }
-  html, body { height: 100%; margin: 0; font-family: "Inter", system-ui, -apple-system, Segoe UI, sans-serif; background: var(--bg); color: var(--text); }
-  #app { display: grid; grid-template-columns: 280px 1fr 360px; gap: 16px; height: 100vh; padding: 16px; }
-  header { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; }
-  .brand { display: flex; gap: 10px; align-items: center; }
-  .logo { width: 36px; height: 36px; border-radius: 12px; background: linear-gradient(135deg, #4cc9f0, #a78bfa); display: grid; place-items: center; font-weight: 700; color: #05121f; }
-  .pill { padding: 4px 10px; border-radius: 999px; background: rgba(76,201,240,0.12); color: var(--accent); font-size: 12px; }
-  .left, .center, .right { background: var(--panel); border-radius: var(--radius); padding: 14px; box-shadow: var(--shadow); min-height: 0; }
-  .left { display: flex; flex-direction: column; gap: 14px; }
-  .section-title { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
-  .selector { display: flex; flex-direction: column; gap: 8px; }
-  select, input[type="text"], input[type="range"], button {
-    background: var(--card);
+  html, body {
+    height: 100%;
+    margin: 0;
+    font-family: "Manrope", "Inter", system-ui, sans-serif;
     color: var(--text);
-    border: 1px solid #293049;
-    border-radius: 10px;
-    padding: 8px 10px;
-    font-size: 14px;
+    background: radial-gradient(circle at top, #163523, var(--bg)) fixed;
   }
-  button { cursor: pointer; transition: transform 0.1s ease, background 0.2s ease; }
-  button:hover { transform: translateY(-1px); background: #202a44; }
-  .filter-group { display: grid; gap: 8px; }
-  .chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
-  .chip { padding: 6px 10px; border-radius: 999px; background: #1d2740; color: var(--muted); font-size: 12px; cursor: pointer; border: 1px solid transparent; }
-  .chip.active { border-color: var(--accent); color: var(--text); }
-  .center { display: flex; flex-direction: column; gap: 12px; }
-  .board { display: grid; grid-template-columns: repeat(4, minmax(220px, 1fr)); gap: 10px; overflow: auto; padding-bottom: 8px; }
-  .column { background: var(--panel-2); border-radius: 12px; padding: 10px; min-height: 400px; display: flex; flex-direction: column; gap: 10px; }
-  .column h3 { margin: 0; font-size: 14px; color: var(--muted); display: flex; justify-content: space-between; }
-  .card { background: var(--card); border-radius: 12px; padding: 10px; display: grid; gap: 6px; border: 1px solid #2a3350; cursor: grab; }
-  .card[draggable="true"]:active { cursor: grabbing; }
-  .meta { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--muted); }
-  .severity { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
-  .severity.Low { background: rgba(45,212,191,0.15); color: var(--good); }
-  .severity.Med { background: rgba(245,158,11,0.2); color: var(--warn); }
-  .severity.High { background: rgba(239,68,68,0.18); color: var(--bad); }
-  .severity.Critical { background: rgba(239,68,68,0.35); color: #fecaca; }
-  .card-title { font-weight: 600; }
-  .rec { font-size: 12px; color: var(--accent); }
-  .right { display: grid; grid-template-rows: auto 1fr auto; gap: 10px; }
-  .agent-status { display: flex; align-items: center; justify-content: space-between; background: #111729; border-radius: 12px; padding: 10px; }
-  .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 rgba(45,212,191,0.6); animation: pulse 1.8s infinite; }
-  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(45,212,191,0.6); } 70% { box-shadow: 0 0 0 10px rgba(45,212,191,0); } 100% { box-shadow: 0 0 0 0 rgba(45,212,191,0); } }
-  .feed { overflow: auto; display: grid; gap: 8px; }
-  .feed-item { background: #151c2f; border-radius: 10px; padding: 8px; font-size: 12px; color: var(--muted); }
-  .feed-item a { color: var(--accent); text-decoration: none; }
-  .explain { background: #111729; border-radius: 12px; padding: 10px; font-size: 13px; color: var(--muted); }
-  .telemetry { background: #101827; border-radius: 12px; padding: 10px; display: grid; gap: 8px; }
-  table { width: 100%; border-collapse: collapse; font-size: 11px; color: var(--muted); }
-  th, td { text-align: left; padding: 4px 2px; border-bottom: 1px solid #1b243a; }
-  .sparkline { width: 100%; height: 60px; background: #0d1322; border-radius: 8px; }
-  .controls { display: flex; gap: 8px; flex-wrap: wrap; }
-  .drawer { position: fixed; right: 20px; top: 80px; width: 360px; max-height: 82vh; background: var(--panel); border-radius: 16px; box-shadow: var(--shadow); padding: 12px; display: none; flex-direction: column; gap: 10px; overflow: auto; }
-  .drawer.open { display: flex; }
-  .timeline { display: grid; gap: 6px; }
-  .timeline-item { background: #151c2f; border-radius: 10px; padding: 6px; font-size: 12px; color: var(--muted); }
-  .metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; font-size: 12px; }
-  .metric { background: #151c2f; border-radius: 8px; padding: 6px; }
-  .playbook { display: grid; gap: 6px; }
-  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1d2740; color: var(--text); padding: 10px 14px; border-radius: 12px; box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
-  .toast.show { opacity: 1; }
-  .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
-  .small { font-size: 12px; color: var(--muted); }
-  .link-button { background: none; border: none; color: var(--accent); cursor: pointer; padding: 0; font-size: 12px; }
-  .hidden { display: none; }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background:
+      linear-gradient(120deg, rgba(112, 227, 155, 0.05), transparent 60%),
+      radial-gradient(circle at 20% 20%, rgba(245, 215, 110, 0.12), transparent 45%),
+      radial-gradient(circle at 80% 0%, rgba(112, 227, 155, 0.12), transparent 45%);
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .app {
+    display: grid;
+    grid-template-columns: minmax(220px, 300px) minmax(340px, 460px) minmax(220px, 300px);
+    gap: 20px;
+    padding: 24px;
+    min-height: 100vh;
+  }
+
+  header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #70e39b, #f5d76e);
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    color: #1a2d20;
+    box-shadow: var(--glow);
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 24px;
+    letter-spacing: 0.02em;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .panel {
+    background: var(--panel);
+    border-radius: 18px;
+    padding: 16px;
+    box-shadow: var(--shadow);
+    border: 1px solid rgba(112, 227, 155, 0.15);
+    backdrop-filter: blur(8px);
+  }
+
+  .panel h2 {
+    margin: 0 0 8px;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+  }
+
+  .stats {
+    display: grid;
+    gap: 12px;
+  }
+
+  .stat {
+    background: var(--panel-2);
+    border-radius: 14px;
+    padding: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    border: 1px solid rgba(112, 227, 155, 0.2);
+  }
+
+  .stat strong { font-size: 18px; }
+
+  .board-wrapper {
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    background: var(--panel-2);
+    border-radius: 22px;
+    border: 1px solid rgba(112, 227, 155, 0.18);
+    box-shadow: var(--glow);
+  }
+
+  canvas {
+    background: linear-gradient(180deg, rgba(11, 30, 20, 0.95), rgba(8, 22, 15, 0.95));
+    border-radius: 14px;
+    border: 1px solid rgba(112, 227, 155, 0.25);
+  }
+
+  .stack {
+    display: grid;
+    gap: 12px;
+  }
+
+  .preview {
+    display: grid;
+    place-items: center;
+    background: rgba(16, 42, 30, 0.9);
+    border-radius: 16px;
+    padding: 12px;
+    border: 1px solid rgba(245, 215, 110, 0.2);
+  }
+
+  .controls {
+    display: grid;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+
+  .controls strong { color: var(--text); }
+
+  button, select {
+    background: rgba(16, 42, 30, 0.85);
+    color: var(--text);
+    border: 1px solid rgba(112, 227, 155, 0.3);
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.2s ease;
+  }
+
+  button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
+  }
+
+  .footer {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .badge {
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(112, 227, 155, 0.15);
+    color: var(--accent);
+    font-size: 12px;
+    border: 1px solid rgba(112, 227, 155, 0.3);
+  }
+
+  .toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .toggle input { accent-color: var(--accent); }
+
+  .game-message {
+    margin-top: 10px;
+    background: rgba(245, 215, 110, 0.15);
+    border: 1px solid rgba(245, 215, 110, 0.35);
+    color: #f6f2d0;
+    padding: 10px 12px;
+    border-radius: 14px;
+    font-size: 13px;
+    text-align: center;
+  }
 </style>
 </head>
 <body>
-<header>
-  <div class="brand">
-    <div class="logo">F2</div>
-    <div>
-      <div style="font-weight:700;">Formant 2.0</div>
-      <div class="small">Physical Ops Triage Board</div>
-    </div>
-  </div>
-  <div class="toolbar">
-    <span class="pill">Live Demo</span>
-    <label class="toggle"><input id="autoResolveToggle" type="checkbox" checked /> Auto-resolve</label>
-    <label class="toggle">Anomaly rate <input id="anomalyRate" type="range" min="1" max="10" value="4" /></label>
-    <button id="resetBtn">Reset demo</button>
-  </div>
-</header>
-<div id="app">
-  <aside class="left" aria-label="Filters">
-    <div class="selector">
-      <div class="section-title">Facilities / Fleets</div>
-      <select id="facilitySelect" aria-label="Select facility">
-        <option value="all">All Facilities</option>
-      </select>
-    </div>
-    <div class="selector">
-      <div class="section-title">Quick Filters</div>
-      <div class="chip-row" id="severityFilters">
-        <div class="chip" data-sev="Low">Low</div>
-        <div class="chip" data-sev="Med">Med</div>
-        <div class="chip" data-sev="High">High</div>
-        <div class="chip" data-sev="Critical">Critical</div>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="logo">ST</div>
+        <div>
+          <h1>Solarpunk Tetris</h1>
+          <div class="subtitle">Grow light + glasshouse + clean energy vibes.</div>
+        </div>
       </div>
-      <div class="chip-row" id="assetFilters">
-        <div class="chip" data-type="Robot">Robot</div>
-        <div class="chip" data-type="Pump">Pump</div>
-        <div class="chip" data-type="Conveyor">Conveyor</div>
-        <div class="chip" data-type="HVAC">HVAC</div>
-        <div class="chip" data-type="Forklift">Forklift</div>
-        <div class="chip" data-type="AMR">AMR</div>
-      </div>
-      <label class="toggle"><input id="assignedToggle" type="checkbox" /> Assigned to me</label>
-      <input id="searchInput" type="text" placeholder="Search incidents" aria-label="Search incidents" />
-    </div>
-    <div class="selector">
-      <div class="section-title">Data Source</div>
-      <select id="dataSource">
-        <option value="sim">Simulated</option>
-        <option value="ws">WebSocket</option>
-      </select>
-      <input id="wsUrl" type="text" placeholder="ws://localhost:8080" class="hidden" />
-      <div class="controls">
-        <button id="connectBtn" class="hidden">Connect</button>
-        <button id="disconnectBtn" class="hidden">Disconnect</button>
-      </div>
-      <div id="wsStatus" class="small"></div>
-    </div>
-  </aside>
+      <div class="badge" id="statusBadge">Ready to bloom</div>
+    </header>
 
-  <main class="center" aria-label="Triage board">
-    <div class="section-title">Triage Board</div>
-    <div class="board" id="board">
-      <div class="column" data-status="New">
-        <h3>New <span id="count-New">0</span></h3>
+    <section class="panel">
+      <h2>Garden Stats</h2>
+      <div class="stats">
+        <div class="stat"><span>Score</span><strong id="score">0</strong></div>
+        <div class="stat"><span>Level</span><strong id="level">1</strong></div>
+        <div class="stat"><span>Lines</span><strong id="lines">0</strong></div>
       </div>
-      <div class="column" data-status="Investigating">
-        <h3>Investigating <span id="count-Investigating">0</span></h3>
-      </div>
-      <div class="column" data-status="Mitigating">
-        <h3>Mitigating <span id="count-Mitigating">0</span></h3>
-      </div>
-      <div class="column" data-status="Resolved">
-        <h3>Resolved <span id="count-Resolved">0</span></h3>
-      </div>
-    </div>
-  </main>
+      <div class="game-message" id="gameMessage">Press Start or Space to begin.</div>
+    </section>
 
-  <aside class="right" aria-label="Agent and telemetry">
-    <div class="agent-status">
+    <section class="panel board-wrapper">
+      <canvas id="board" width="300" height="600" aria-label="Tetris board"></canvas>
+    </section>
+
+    <section class="panel stack">
       <div>
-        <div style="font-weight:600;">Agent</div>
-        <div class="small" id="agentStatus">Listening to live stream…</div>
+        <h2>Next Bloom</h2>
+        <div class="preview">
+          <canvas id="next" width="120" height="120" aria-label="Next piece preview"></canvas>
+        </div>
       </div>
-      <div class="pulse" aria-hidden="true"></div>
-    </div>
-    <div class="feed" id="activityFeed"></div>
-    <div class="explain" id="explainBox">Select an incident to see reasoning.</div>
-    <div class="telemetry">
-      <div style="font-weight:600;">Live Telemetry</div>
-      <canvas id="sparkline" class="sparkline" aria-label="Telemetry sparkline"></canvas>
-      <table>
-        <thead>
-          <tr>
-            <th>Time</th><th>Asset</th><th>Temp</th><th>Vib</th><th>Battery</th>
-          </tr>
-        </thead>
-        <tbody id="telemetryTable"></tbody>
-      </table>
-    </div>
-  </aside>
-</div>
+      <div>
+        <h2>Hold Pod</h2>
+        <div class="preview">
+          <canvas id="hold" width="120" height="120" aria-label="Held piece preview"></canvas>
+        </div>
+      </div>
+      <div class="controls">
+        <div><strong>Controls</strong></div>
+        <div>Move: ← → · Rotate: ↑ · Soft Drop: ↓ · Hard Drop: Space</div>
+        <div>Hold: C · Pause: P · Restart: R</div>
+        <div class="toggle">
+          <input id="soundToggle" type="checkbox" checked />
+          <label for="soundToggle">Solar synth soundscape</label>
+        </div>
+        <button id="startBtn">Start / Resume</button>
+        <button id="restartBtn">Restart Garden</button>
+      </div>
+    </section>
 
-<div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="Incident details">
-  <div style="display:flex; justify-content:space-between; align-items:center;">
-    <div>
-      <div id="drawerTitle" style="font-weight:700;"></div>
-      <div id="drawerMeta" class="small"></div>
-    </div>
-    <button id="closeDrawer">Close</button>
+    <div class="footer">Crafted with reclaimed circuits, luminous moss, and infinite sunlight.</div>
   </div>
-  <div class="metrics" id="drawerMetrics"></div>
-  <div>
-    <div class="section-title">Timeline</div>
-    <div class="timeline" id="drawerTimeline"></div>
-  </div>
-  <div>
-    <div class="section-title">Recommended Playbook</div>
-    <div class="playbook">
-      <button data-action="ack">Acknowledge</button>
-      <button data-action="assign">Assign to me</button>
-      <button data-action="playbook">Run playbook</button>
-      <button data-action="resolve">Resolve</button>
-    </div>
-  </div>
-</div>
-
-<div class="toast" id="toast"></div>
 
 <script>
-(() => {
-  const facilities = [
-    { id: 'reno', name: 'Reno DC' },
-    { id: 'austin', name: 'Austin Fab' },
-    { id: 'rotterdam', name: 'Rotterdam Port' }
-  ];
-  const assets = [
-    { id: 'rbt-01', type: 'Robot', facilityId: 'reno' },
-    { id: 'rbt-02', type: 'Robot', facilityId: 'reno' },
-    { id: 'amr-03', type: 'AMR', facilityId: 'reno' },
-    { id: 'pump-01', type: 'Pump', facilityId: 'austin' },
-    { id: 'pump-02', type: 'Pump', facilityId: 'austin' },
-    { id: 'conv-01', type: 'Conveyor', facilityId: 'austin' },
-    { id: 'hvac-01', type: 'HVAC', facilityId: 'rotterdam' },
-    { id: 'fork-01', type: 'Forklift', facilityId: 'rotterdam' },
-    { id: 'amr-09', type: 'AMR', facilityId: 'rotterdam' },
-    { id: 'conv-02', type: 'Conveyor', facilityId: 'reno' },
-    { id: 'fork-02', type: 'Forklift', facilityId: 'austin' },
-    { id: 'hvac-02', type: 'HVAC', facilityId: 'reno' }
-  ];
+  const boardCanvas = document.getElementById("board");
+  const boardCtx = boardCanvas.getContext("2d");
+  const nextCanvas = document.getElementById("next");
+  const nextCtx = nextCanvas.getContext("2d");
+  const holdCanvas = document.getElementById("hold");
+  const holdCtx = holdCanvas.getContext("2d");
 
-  const state = {
-    incidents: [],
-    telemetry: [],
-    activity: [],
-    lastEventAt: Date.now(),
-    selectedIncidentId: null,
-    filters: { severity: new Set(), assetType: new Set(), assignedToMe: false, search: '', facility: 'all' },
-    autoResolve: true,
-    anomalyRate: 4,
-    dataSource: 'sim',
-    ws: null,
-    wsConnected: false
+  const scoreEl = document.getElementById("score");
+  const levelEl = document.getElementById("level");
+  const linesEl = document.getElementById("lines");
+  const statusBadge = document.getElementById("statusBadge");
+  const gameMessage = document.getElementById("gameMessage");
+  const startBtn = document.getElementById("startBtn");
+  const restartBtn = document.getElementById("restartBtn");
+  const soundToggle = document.getElementById("soundToggle");
+
+  const COLS = 10;
+  const ROWS = 20;
+  const BLOCK = 30;
+
+  const palette = {
+    I: "#70e39b",
+    J: "#8fd3ff",
+    L: "#f5d76e",
+    O: "#f2a65a",
+    S: "#7de5b6",
+    T: "#c7f3b2",
+    Z: "#e28d8d"
   };
 
-  const storageKey = 'formant2_incidents';
+  const shapes = {
+    I: [
+      [0,0,0,0],
+      [1,1,1,1],
+      [0,0,0,0],
+      [0,0,0,0]
+    ],
+    J: [
+      [1,0,0],
+      [1,1,1],
+      [0,0,0]
+    ],
+    L: [
+      [0,0,1],
+      [1,1,1],
+      [0,0,0]
+    ],
+    O: [
+      [1,1],
+      [1,1]
+    ],
+    S: [
+      [0,1,1],
+      [1,1,0],
+      [0,0,0]
+    ],
+    T: [
+      [0,1,0],
+      [1,1,1],
+      [0,0,0]
+    ],
+    Z: [
+      [1,1,0],
+      [0,1,1],
+      [0,0,0]
+    ]
+  };
 
-  const facilitySelect = document.getElementById('facilitySelect');
-  facilities.forEach(f => {
-    const opt = document.createElement('option');
-    opt.value = f.id; opt.textContent = f.name; facilitySelect.appendChild(opt);
-  });
+  const kicks = [
+    {x: 0, y: 0},
+    {x: -1, y: 0},
+    {x: 1, y: 0},
+    {x: 0, y: -1},
+    {x: -2, y: 0},
+    {x: 2, y: 0}
+  ];
 
-  function saveState() {
-    localStorage.setItem(storageKey, JSON.stringify(state.incidents));
-  }
+  let grid = [];
+  let active = null;
+  let nextQueue = [];
+  let hold = null;
+  let canHold = true;
+  let dropCounter = 0;
+  let lastTime = 0;
+  let dropInterval = 800;
+  let paused = true;
+  let gameOver = false;
+  let score = 0;
+  let lines = 0;
+  let level = 1;
 
-  function loadState() {
-    const raw = localStorage.getItem(storageKey);
-    if (raw) {
-      try { state.incidents = JSON.parse(raw); } catch (e) { state.incidents = []; }
-    }
-  }
-
-  function toast(msg) {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2200);
-  }
-
-  function nowLabel(ts) {
-    const diff = Math.max(0, Date.now() - ts);
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return `${Math.floor(diff / 1000)}s ago`;
-    if (mins < 60) return `${mins}m ago`;
-    return `${Math.floor(mins / 60)}h ago`;
-  }
-
-  function metricBase(type) {
-    switch(type) {
-      case 'Pump': return { temperatureC: 42, vibration: 0.6, batteryPct: 90, pressurePsi: 68, throughput: 120 };
-      case 'Conveyor': return { temperatureC: 38, vibration: 0.4, batteryPct: 80, pressurePsi: 50, throughput: 180 };
-      case 'HVAC': return { temperatureC: 26, vibration: 0.3, batteryPct: 100, pressurePsi: 40, throughput: 90 };
-      case 'Forklift': return { temperatureC: 34, vibration: 0.5, batteryPct: 70, pressurePsi: 45, throughput: 110 };
-      case 'AMR': return { temperatureC: 30, vibration: 0.4, batteryPct: 75, pressurePsi: 35, throughput: 140 };
-      default: return { temperatureC: 36, vibration: 0.5, batteryPct: 85, pressurePsi: 55, throughput: 130 };
-    }
-  }
-
-  const rolling = new Map();
-
-  function pushRolling(assetId, metric) {
-    if (!rolling.has(assetId)) rolling.set(assetId, []);
-    const arr = rolling.get(assetId);
-    arr.push(metric);
-    const cutoff = Date.now() - 180000;
-    while (arr.length && arr[0].ts < cutoff) arr.shift();
-  }
-
-  function calcStats(arr, key) {
-    const vals = arr.map(x => x[key]).filter(v => typeof v === 'number');
-    if (!vals.length) return { avg: 0, sd: 0 };
-    const avg = vals.reduce((a,b) => a+b,0)/vals.length;
-    const sd = Math.sqrt(vals.reduce((a,b) => a + Math.pow(b-avg,2),0)/vals.length);
-    return { avg, sd };
-  }
-
-  function anomalyCheck(asset, m) {
-    const history = rolling.get(asset.id) || [];
-    const statsTemp = calcStats(history, 'temperatureC');
-    const statsVib = calcStats(history, 'vibration');
-    const statsBattery = calcStats(history, 'batteryPct');
-    const statsPressure = calcStats(history, 'pressurePsi');
-
-    const reasons = [];
-    let severity = 'Low';
-    let type = 'general';
-
-    if (m.vibration > statsVib.avg + 2*statsVib.sd && m.temperatureC > statsTemp.avg + 8) {
-      severity = 'High';
-      type = 'vibration-heat';
-      reasons.push('Vibration spike with rising temperature');
-    }
-    if (m.batteryPct < statsBattery.avg - 15 && m.batteryPct < 35) {
-      severity = 'Med';
-      type = 'battery-drain';
-      reasons.push('Rapid battery drain below 35%');
-    }
-    if (Math.abs(m.pressurePsi - statsPressure.avg) > 18 && statsPressure.avg > 0) {
-      severity = severity === 'High' ? 'High' : 'Med';
-      type = 'pressure-oscillation';
-      reasons.push('Pressure oscillation beyond baseline');
-    }
-    if (m.throughput < 40) {
-      severity = 'Critical';
-      type = 'throughput-collapse';
-      reasons.push('Throughput collapse detected');
-    }
-
-    if (!reasons.length) return null;
-    return { severity, type, reasons };
-  }
-
-  function recommendAction(severity, type) {
-    if (severity === 'Critical') return 'Dispatch on-site response + pause line';
-    if (type === 'battery-drain') return 'Swap battery pack and inspect charger';
-    if (type === 'pressure-oscillation') return 'Check valve + calibrate sensor';
-    if (type === 'vibration-heat') return 'Inspect bearings + thermal check';
-    return 'Run diagnostics and monitor';
-  }
-
-  function createIncident(asset, facility, anomaly, m) {
-    const existing = state.incidents.find(i => i.assetId === asset.id && i.type === anomaly.type && (Date.now() - i.createdAt) < 6 * 60000);
-    if (existing) {
-      existing.lastUpdated = Date.now();
-      existing.severity = anomaly.severity;
-      existing.metrics = m;
-      existing.reasoning = anomaly.reasons.join('; ');
-      existing.recommended = recommendAction(anomaly.severity, anomaly.type);
-      existing.timeline.push({ ts: Date.now(), text: `Agent updated: ${existing.reasoning}` });
-      return existing;
-    }
-
-    const incident = {
-      id: `inc-${Date.now()}-${Math.floor(Math.random()*999)}`,
-      assetId: asset.id,
-      assetType: asset.type,
-      facilityId: facility.id,
-      facilityName: facility.name,
-      severity: anomaly.severity,
-      summary: `${asset.type} anomaly: ${anomaly.type.replace('-', ' ')}`,
-      recommended: recommendAction(anomaly.severity, anomaly.type),
-      status: 'New',
-      createdAt: Date.now(),
-      lastUpdated: Date.now(),
-      assignedToMe: false,
-      confidence: Math.round(70 + Math.random()*20),
-      reasoning: anomaly.reasons.join('; '),
-      metrics: m,
-      timeline: [{ ts: Date.now(), text: `Incident created: ${anomaly.reasons.join(', ')}` }]
-    };
-    state.incidents.unshift(incident);
-    state.activity.unshift({ ts: Date.now(), text: `Flagged ${asset.id} (${incident.severity})`, incidentId: incident.id });
-    if (state.activity.length > 20) state.activity.pop();
-    toast(`New ${incident.severity} incident: ${asset.id}`);
-    saveState();
-  }
-
-  function updateIncidentAutoResolve() {
-    if (!state.autoResolve) return;
-    state.incidents.forEach(inc => {
-      if (inc.status === 'Resolved') return;
-      const history = rolling.get(inc.assetId) || [];
-      if (!history.length) return;
-      const statsTemp = calcStats(history, 'temperatureC');
-      const statsVib = calcStats(history, 'vibration');
-      const latest = history[history.length-1];
-      if (latest.temperatureC < statsTemp.avg + 3 && latest.vibration < statsVib.avg + 0.4) {
-        if (!inc.normalSince) inc.normalSince = Date.now();
-        if (Date.now() - inc.normalSince > 60000) {
-          inc.status = 'Resolved';
-          inc.timeline.push({ ts: Date.now(), text: 'Auto-resolved after sustained normal metrics' });
-        }
-      } else {
-        inc.normalSince = null;
+  const audio = {
+    ctx: null,
+    enabled: true,
+    unlock() {
+      if (!this.ctx) {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
       }
-    });
+      if (this.ctx.state === "suspended") {
+        this.ctx.resume();
+      }
+    },
+    beep({ freq = 440, duration = 0.12, type = "sine", gain = 0.2 } = {}) {
+      if (!this.enabled) return;
+      this.unlock();
+      const osc = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      g.gain.value = gain;
+      osc.connect(g).connect(this.ctx.destination);
+      osc.start();
+      g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+      osc.stop(this.ctx.currentTime + duration);
+    },
+    chord() {
+      [220, 330, 440].forEach((freq, index) => {
+        this.beep({ freq, duration: 0.25 + index * 0.05, type: "triangle", gain: 0.12 });
+      });
+    }
+  };
+
+  function resetGrid() {
+    grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
   }
 
-  function renderBoard() {
-    document.querySelectorAll('.column').forEach(col => col.querySelectorAll('.card').forEach(c => c.remove()));
-    const filtered = state.incidents.filter(i => {
-      const f = state.filters;
-      if (f.facility !== 'all' && i.facilityId !== f.facility) return false;
-      if (f.severity.size && !f.severity.has(i.severity)) return false;
-      if (f.assetType.size && !f.assetType.has(i.assetType)) return false;
-      if (f.assignedToMe && !i.assignedToMe) return false;
-      if (f.search && !`${i.summary} ${i.assetId} ${i.facilityName}`.toLowerCase().includes(f.search)) return false;
+  function createBag() {
+    const bag = Object.keys(shapes);
+    for (let i = bag.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [bag[i], bag[j]] = [bag[j], bag[i]];
+    }
+    return bag;
+  }
+
+  function refillQueue() {
+    while (nextQueue.length < 5) {
+      nextQueue = nextQueue.concat(createBag());
+    }
+  }
+
+  function spawnPiece() {
+    refillQueue();
+    const type = nextQueue.shift();
+    const matrix = shapes[type].map(row => row.slice());
+    active = {
+      type,
+      matrix,
+      x: Math.floor((COLS - matrix[0].length) / 2),
+      y: -1
+    };
+    canHold = true;
+    if (collides(active)) {
+      gameOver = true;
+      paused = true;
+      statusBadge.textContent = "Garden overflow";
+      gameMessage.textContent = "Planting beds are full. Press Restart to regrow.";
+      audio.beep({ freq: 110, duration: 0.4, type: "sawtooth", gain: 0.2 });
+    }
+  }
+
+  function collides(piece) {
+    const { matrix, x, y } = piece;
+    for (let row = 0; row < matrix.length; row += 1) {
+      for (let col = 0; col < matrix[row].length; col += 1) {
+        if (!matrix[row][col]) continue;
+        const newX = x + col;
+        const newY = y + row;
+        if (newX < 0 || newX >= COLS || newY >= ROWS) return true;
+        if (newY >= 0 && grid[newY][newX]) return true;
+      }
+    }
+    return false;
+  }
+
+  function mergePiece() {
+    active.matrix.forEach((row, rowIndex) => {
+      row.forEach((value, colIndex) => {
+        if (!value) return;
+        const x = active.x + colIndex;
+        const y = active.y + rowIndex;
+        if (y >= 0) {
+          grid[y][x] = active.type;
+        }
+      });
+    });
+    audio.beep({ freq: 180, duration: 0.08, type: "triangle", gain: 0.12 });
+  }
+
+  function rotate(matrix) {
+    const size = matrix.length;
+    const result = Array.from({ length: size }, () => Array(size).fill(0));
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        result[x][size - 1 - y] = matrix[y][x];
+      }
+    }
+    return result;
+  }
+
+  function attemptRotate() {
+    const originalMatrix = active.matrix.map(row => row.slice());
+    const originalX = active.x;
+    const originalY = active.y;
+    const rotated = rotate(originalMatrix);
+
+    for (const kick of kicks) {
+      active.matrix = rotated;
+      active.x = originalX + kick.x;
+      active.y = originalY + kick.y;
+      if (!collides(active)) {
+        audio.beep({ freq: 520, duration: 0.08, type: "sine", gain: 0.12 });
+        return;
+      }
+    }
+
+    active.matrix = originalMatrix;
+    active.x = originalX;
+    active.y = originalY;
+  }
+
+  function move(dir) {
+    active.x += dir;
+    if (collides(active)) {
+      active.x -= dir;
+      return false;
+    }
+    audio.beep({ freq: 320, duration: 0.05, type: "sine", gain: 0.08 });
+    return true;
+  }
+
+  function drop() {
+    active.y += 1;
+    if (collides(active)) {
+      active.y -= 1;
+      mergePiece();
+      clearLines();
+      spawnPiece();
+      return false;
+    }
+    return true;
+  }
+
+  function hardDrop() {
+    let distance = 0;
+    while (drop()) {
+      distance += 1;
+    }
+    score += distance * 2;
+    updateStats();
+    audio.beep({ freq: 260, duration: 0.12, type: "square", gain: 0.15 });
+  }
+
+  function holdPiece() {
+    if (!canHold) return;
+    const temp = hold;
+    hold = { type: active.type, matrix: shapes[active.type].map(row => row.slice()) };
+    if (temp) {
+      active.type = temp.type;
+      active.matrix = temp.matrix.map(row => row.slice());
+      active.x = Math.floor((COLS - active.matrix[0].length) / 2);
+      active.y = -1;
+    } else {
+      spawnPiece();
+    }
+    canHold = false;
+    audio.beep({ freq: 400, duration: 0.1, type: "triangle", gain: 0.1 });
+  }
+
+  function clearLines() {
+    let cleared = 0;
+    grid = grid.filter(row => {
+      if (row.every(cell => cell)) {
+        cleared += 1;
+        return false;
+      }
       return true;
     });
+    while (grid.length < ROWS) {
+      grid.unshift(Array(COLS).fill(null));
+    }
+    if (cleared > 0) {
+      const scores = [0, 100, 300, 500, 800];
+      score += scores[cleared] * level;
+      lines += cleared;
+      level = Math.floor(lines / 10) + 1;
+      dropInterval = Math.max(120, 800 - (level - 1) * 60);
+      updateStats();
+      audio.chord();
+      statusBadge.textContent = `Bloom combo x${cleared}`;
+    }
+  }
 
-    const counts = { New: 0, Investigating: 0, Mitigating: 0, Resolved: 0 };
-    filtered.forEach(inc => {
-      counts[inc.status] = (counts[inc.status] || 0) + 1;
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.draggable = true;
-      card.dataset.id = inc.id;
-      card.innerHTML = `
-        <div class="meta"><span class="severity ${inc.severity}">${inc.severity}</span><span>${inc.assetId}</span></div>
-        <div class="card-title">${inc.summary}</div>
-        <div class="small">${inc.facilityName} • ${nowLabel(inc.createdAt)}</div>
-        <div class="rec">${inc.recommended}</div>
-      `;
-      card.addEventListener('click', () => openDrawer(inc.id));
-      card.addEventListener('dragstart', e => {
-        e.dataTransfer.setData('text/plain', inc.id);
+  function drawBlock(ctx, x, y, color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x * BLOCK, y * BLOCK, BLOCK, BLOCK);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+    ctx.strokeRect(x * BLOCK + 2, y * BLOCK + 2, BLOCK - 4, BLOCK - 4);
+  }
+
+  function drawGrid() {
+    boardCtx.clearRect(0, 0, boardCanvas.width, boardCanvas.height);
+
+    grid.forEach((row, y) => {
+      row.forEach((cell, x) => {
+        if (cell) {
+          drawBlock(boardCtx, x, y, palette[cell]);
+        }
       });
-      const col = document.querySelector(`.column[data-status="${inc.status}"]`);
-      if (col) col.appendChild(card);
     });
 
-    Object.keys(counts).forEach(k => {
-      const el = document.getElementById(`count-${k}`);
-      if (el) el.textContent = counts[k];
-    });
-  }
-
-  function renderActivity() {
-    const feed = document.getElementById('activityFeed');
-    feed.innerHTML = '';
-    state.activity.slice(0, 20).forEach(item => {
-      const div = document.createElement('div');
-      div.className = 'feed-item';
-      const link = item.incidentId ? `<a href="#" data-id="${item.incidentId}">View</a>` : '';
-      div.innerHTML = `<div>${new Date(item.ts).toLocaleTimeString()} • ${item.text} ${link}</div>`;
-      div.querySelectorAll('a').forEach(a => a.addEventListener('click', e => {
-        e.preventDefault();
-        openDrawer(item.incidentId);
-      }));
-      feed.appendChild(div);
-    });
-  }
-
-  function renderExplain() {
-    const box = document.getElementById('explainBox');
-    const inc = state.incidents.find(i => i.id === state.selectedIncidentId);
-    if (!inc) {
-      box.textContent = 'Select an incident to see reasoning.';
-      return;
-    }
-    box.innerHTML = `<strong>Reasoning:</strong> ${inc.reasoning}<br><span class="small">Confidence ${inc.confidence}% • ${inc.recommended}</span>`;
-  }
-
-  function renderTelemetry() {
-    const table = document.getElementById('telemetryTable');
-    table.innerHTML = '';
-    state.telemetry.slice(0, 10).forEach(ev => {
-      const row = document.createElement('tr');
-      row.innerHTML = `<td>${new Date(ev.ts).toLocaleTimeString()}</td><td>${ev.assetId}</td><td>${ev.metrics.temperatureC.toFixed(1)}</td><td>${ev.metrics.vibration.toFixed(2)}</td><td>${Math.round(ev.metrics.batteryPct)}%</td>`;
-      table.appendChild(row);
-    });
-  }
-
-  function drawSparkline() {
-    const canvas = document.getElementById('sparkline');
-    const ctx = canvas.getContext('2d');
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
-    canvas.width = width; canvas.height = height;
-    ctx.clearRect(0,0,width,height);
-    ctx.strokeStyle = '#4cc9f0';
-    ctx.lineWidth = 2;
-    const data = state.telemetry.slice(0, 20).map(ev => ev.metrics.temperatureC).reverse();
-    if (!data.length) return;
-    const min = Math.min(...data) - 2;
-    const max = Math.max(...data) + 2;
-    ctx.beginPath();
-    data.forEach((val, idx) => {
-      const x = (idx/(data.length-1)) * (width-10) + 5;
-      const y = height - ((val - min)/(max-min)) * (height-10) - 5;
-      if (idx === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-    });
-    ctx.stroke();
-  }
-
-  function renderDrawer(inc) {
-    document.getElementById('drawerTitle').textContent = inc.summary;
-    document.getElementById('drawerMeta').textContent = `${inc.assetId} • ${inc.facilityName} • ${inc.severity}`;
-    const metrics = document.getElementById('drawerMetrics');
-    metrics.innerHTML = '';
-    const m = inc.metrics || {};
-    const entries = [
-      ['Temperature', `${m.temperatureC?.toFixed(1) ?? '-'} °C`],
-      ['Vibration', `${m.vibration?.toFixed(2) ?? '-'} g`],
-      ['Battery', `${Math.round(m.batteryPct ?? 0)} %`],
-      ['Pressure', `${m.pressurePsi?.toFixed(1) ?? '-'} psi`],
-      ['Throughput', `${m.throughput ?? '-'} /min`],
-      ['Confidence', `${inc.confidence}%`]
-    ];
-    entries.forEach(([k,v]) => {
-      const div = document.createElement('div');
-      div.className = 'metric';
-      div.innerHTML = `<div class="small">${k}</div><div>${v}</div>`;
-      metrics.appendChild(div);
-    });
-
-    const timeline = document.getElementById('drawerTimeline');
-    timeline.innerHTML = '';
-    inc.timeline.slice().reverse().forEach(t => {
-      const div = document.createElement('div');
-      div.className = 'timeline-item';
-      div.textContent = `${new Date(t.ts).toLocaleTimeString()} • ${t.text}`;
-      timeline.appendChild(div);
-    });
-  }
-
-  function openDrawer(id) {
-    const inc = state.incidents.find(i => i.id === id);
-    if (!inc) return;
-    state.selectedIncidentId = id;
-    renderDrawer(inc);
-    renderExplain();
-    document.getElementById('drawer').classList.add('open');
-  }
-
-  document.getElementById('closeDrawer').addEventListener('click', () => {
-    document.getElementById('drawer').classList.remove('open');
-  });
-
-  document.querySelectorAll('.playbook button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const action = btn.dataset.action;
-      const inc = state.incidents.find(i => i.id === state.selectedIncidentId);
-      if (!inc) return;
-      if (action === 'ack') {
-        inc.timeline.push({ ts: Date.now(), text: 'Acknowledged by operator' });
-      }
-      if (action === 'assign') {
-        inc.assignedToMe = true;
-        inc.timeline.push({ ts: Date.now(), text: 'Assigned to you' });
-      }
-      if (action === 'playbook') {
-        inc.status = 'Mitigating';
-        inc.timeline.push({ ts: Date.now(), text: 'Playbook executed: diagnostics + isolation' });
-      }
-      if (action === 'resolve') {
-        inc.status = 'Resolved';
-        inc.timeline.push({ ts: Date.now(), text: 'Resolved by operator' });
-      }
-      inc.lastUpdated = Date.now();
-      saveState();
-      renderBoard();
-      renderDrawer(inc);
-      renderExplain();
-    });
-  });
-
-  document.querySelectorAll('.column').forEach(col => {
-    col.addEventListener('dragover', e => e.preventDefault());
-    col.addEventListener('drop', e => {
-      const id = e.dataTransfer.getData('text/plain');
-      const inc = state.incidents.find(i => i.id === id);
-      if (inc) {
-        inc.status = col.dataset.status;
-        inc.timeline.push({ ts: Date.now(), text: `Moved to ${inc.status}` });
-        inc.lastUpdated = Date.now();
-        saveState();
-        renderBoard();
-      }
-    });
-  });
-
-  function handleTelemetry(ev) {
-    state.telemetry.unshift(ev);
-    if (state.telemetry.length > 50) state.telemetry.pop();
-    state.lastEventAt = Date.now();
-    pushRolling(ev.assetId, { ts: ev.ts, ...ev.metrics });
-    const asset = assets.find(a => a.id === ev.assetId);
-    const facility = facilities.find(f => f.id === ev.facilityId);
-    const anomaly = anomalyCheck(asset, ev.metrics);
-    if (anomaly) createIncident(asset, facility, anomaly, ev.metrics);
-    updateIncidentAutoResolve();
-    renderTelemetry();
-    drawSparkline();
-    renderBoard();
-    renderActivity();
-    renderExplain();
-    document.getElementById('agentStatus').textContent = `Listening to live stream… last event: ${Date.now() - state.lastEventAt} ms ago`;
-  }
-
-  function randomTelemetry() {
-    const asset = assets[Math.floor(Math.random() * assets.length)];
-    const base = metricBase(asset.type);
-    const rate = state.anomalyRate;
-    const jitter = (val, spread) => val + (Math.random() * spread - spread/2);
-    let metrics = {
-      temperatureC: jitter(base.temperatureC, 4),
-      vibration: Math.max(0, jitter(base.vibration, 0.3)),
-      batteryPct: Math.max(10, jitter(base.batteryPct, 6)),
-      pressurePsi: Math.max(15, jitter(base.pressurePsi, 6)),
-      throughput: Math.max(20, Math.round(jitter(base.throughput, 20)))
-    };
-
-    if (Math.random() < rate / 20) {
-      const pattern = Math.floor(Math.random() * 4);
-      if (pattern === 0) {
-        metrics.vibration += 1.5;
-        metrics.temperatureC += 12;
-      }
-      if (pattern === 1) {
-        metrics.batteryPct -= 30;
-      }
-      if (pattern === 2) {
-        metrics.pressurePsi += 25;
-      }
-      if (pattern === 3) {
-        metrics.throughput = 20;
-      }
-      metrics.errorCodes = ['E-217'];
-    }
-
-    return {
-      ts: Date.now(),
-      facilityId: asset.facilityId,
-      assetId: asset.id,
-      assetType: asset.type,
-      metrics
-    };
-  }
-
-  let simTimer = null;
-  function startSimulation() {
-    if (simTimer) return;
-    const tick = () => {
-      handleTelemetry(randomTelemetry());
-      const delay = 250 + Math.random() * 750;
-      simTimer = setTimeout(tick, delay);
-    };
-    tick();
-  }
-
-  function stopSimulation() {
-    if (simTimer) clearTimeout(simTimer);
-    simTimer = null;
-  }
-
-  function setupFilters() {
-    document.getElementById('severityFilters').addEventListener('click', e => {
-      if (e.target.classList.contains('chip')) {
-        const sev = e.target.dataset.sev;
-        e.target.classList.toggle('active');
-        if (state.filters.severity.has(sev)) state.filters.severity.delete(sev); else state.filters.severity.add(sev);
-        renderBoard();
-      }
-    });
-    document.getElementById('assetFilters').addEventListener('click', e => {
-      if (e.target.classList.contains('chip')) {
-        const type = e.target.dataset.type;
-        e.target.classList.toggle('active');
-        if (state.filters.assetType.has(type)) state.filters.assetType.delete(type); else state.filters.assetType.add(type);
-        renderBoard();
-      }
-    });
-    document.getElementById('assignedToggle').addEventListener('change', e => {
-      state.filters.assignedToMe = e.target.checked;
-      renderBoard();
-    });
-    document.getElementById('searchInput').addEventListener('input', e => {
-      state.filters.search = e.target.value.toLowerCase();
-      renderBoard();
-    });
-    facilitySelect.addEventListener('change', e => {
-      state.filters.facility = e.target.value;
-      renderBoard();
-    });
-  }
-
-  document.getElementById('autoResolveToggle').addEventListener('change', e => {
-    state.autoResolve = e.target.checked;
-  });
-  document.getElementById('anomalyRate').addEventListener('input', e => {
-    state.anomalyRate = parseInt(e.target.value, 10);
-  });
-  document.getElementById('resetBtn').addEventListener('click', () => {
-    localStorage.removeItem(storageKey);
-    state.incidents = [];
-    state.activity = [];
-    renderBoard();
-    renderActivity();
-    toast('Demo reset');
-  });
-
-  function setupDataSource() {
-    const dataSource = document.getElementById('dataSource');
-    const wsUrl = document.getElementById('wsUrl');
-    const connectBtn = document.getElementById('connectBtn');
-    const disconnectBtn = document.getElementById('disconnectBtn');
-    const wsStatus = document.getElementById('wsStatus');
-
-    function updateUI() {
-      const isWs = dataSource.value === 'ws';
-      wsUrl.classList.toggle('hidden', !isWs);
-      connectBtn.classList.toggle('hidden', !isWs);
-      disconnectBtn.classList.toggle('hidden', !isWs);
-      wsStatus.textContent = isWs ? (state.wsConnected ? 'Connected' : 'Not connected') : '';
-    }
-
-    dataSource.addEventListener('change', () => {
-      state.dataSource = dataSource.value;
-      if (state.dataSource === 'sim') {
-        if (state.ws) state.ws.close();
-        stopSimulation();
-        startSimulation();
-      } else {
-        stopSimulation();
-      }
-      updateUI();
-    });
-
-    connectBtn.addEventListener('click', () => {
-      if (!wsUrl.value) return;
-      try {
-        state.ws = new WebSocket(wsUrl.value);
-        state.ws.onopen = () => {
-          state.wsConnected = true;
-          wsStatus.textContent = 'Connected';
-        };
-        state.ws.onmessage = ev => {
-          try {
-            const data = JSON.parse(ev.data);
-            if (data && data.metrics) handleTelemetry(data);
-          } catch (e) {
-            wsStatus.textContent = 'Bad data format';
+    if (active) {
+      active.matrix.forEach((row, y) => {
+        row.forEach((value, x) => {
+          if (value) {
+            drawBlock(boardCtx, active.x + x, active.y + y, palette[active.type]);
           }
-        };
-        state.ws.onerror = () => {
-          wsStatus.textContent = 'Connection error, falling back to simulation';
-          state.wsConnected = false;
-          stopSimulation();
-          startSimulation();
-        };
-        state.ws.onclose = () => {
-          state.wsConnected = false;
-          wsStatus.textContent = 'Disconnected';
-        };
-      } catch (e) {
-        wsStatus.textContent = 'Failed to connect, using simulation';
-        startSimulation();
+        });
+      });
+    }
+  }
+
+  function drawPreview(ctx, piece) {
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    if (!piece) return;
+    const size = piece.matrix.length;
+    const offset = Math.floor((4 - size) / 2);
+    piece.matrix.forEach((row, y) => {
+      row.forEach((value, x) => {
+        if (value) {
+          ctx.fillStyle = palette[piece.type];
+          ctx.fillRect((x + offset) * 24, (y + offset) * 24, 24, 24);
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
+          ctx.strokeRect((x + offset) * 24 + 2, (y + offset) * 24 + 2, 20, 20);
+        }
+      });
+    });
+  }
+
+  function updateStats() {
+    scoreEl.textContent = score;
+    levelEl.textContent = level;
+    linesEl.textContent = lines;
+  }
+
+  function updateStatus() {
+    if (paused) {
+      statusBadge.textContent = gameOver ? "Garden overflow" : "Paused";
+    } else {
+      statusBadge.textContent = "Growing";
+    }
+  }
+
+  function tick(time = 0) {
+    if (!paused) {
+      const delta = time - lastTime;
+      lastTime = time;
+      dropCounter += delta;
+      if (dropCounter > dropInterval) {
+        drop();
+        dropCounter = 0;
       }
-    });
-
-    disconnectBtn.addEventListener('click', () => {
-      if (state.ws) state.ws.close();
-      state.wsConnected = false;
-      wsStatus.textContent = 'Disconnected';
-      if (state.dataSource === 'ws') startSimulation();
-    });
-
-    updateUI();
+      drawGrid();
+      drawPreview(nextCtx, { type: nextQueue[0], matrix: shapes[nextQueue[0]] });
+      drawPreview(holdCtx, hold);
+    }
+    requestAnimationFrame(tick);
   }
 
-  function init() {
-    loadState();
-    renderBoard();
-    renderActivity();
-    renderTelemetry();
-    setupFilters();
-    setupDataSource();
-    startSimulation();
+  function startGame() {
+    if (gameOver) {
+      resetGame();
+    }
+    paused = false;
+    updateStatus();
+    gameMessage.textContent = "Harvest clean rows to power the eco-grid.";
   }
 
-  init();
-})();
+  function resetGame() {
+    resetGrid();
+    nextQueue = [];
+    hold = null;
+    score = 0;
+    lines = 0;
+    level = 1;
+    dropInterval = 800;
+    gameOver = false;
+    paused = false;
+    spawnPiece();
+    updateStats();
+    updateStatus();
+    drawPreview(holdCtx, hold);
+    drawPreview(nextCtx, { type: nextQueue[0], matrix: shapes[nextQueue[0]] });
+    gameMessage.textContent = "New season planted. Good luck!";
+  }
+
+  document.addEventListener("keydown", (event) => {
+    if (gameOver && event.key.toLowerCase() !== "r") return;
+    switch (event.key) {
+      case "ArrowLeft":
+        if (!paused) move(-1);
+        break;
+      case "ArrowRight":
+        if (!paused) move(1);
+        break;
+      case "ArrowDown":
+        if (!paused) {
+          drop();
+          score += 1;
+          updateStats();
+        }
+        break;
+      case "ArrowUp":
+        if (!paused) attemptRotate();
+        break;
+      case " ":
+        event.preventDefault();
+        if (paused) {
+          startGame();
+        } else {
+          hardDrop();
+        }
+        break;
+      case "c":
+      case "C":
+        if (!paused) holdPiece();
+        break;
+      case "p":
+      case "P":
+        paused = !paused;
+        updateStatus();
+        gameMessage.textContent = paused ? "Paused. Take a breath." : "Back to the canopy.";
+        break;
+      case "r":
+      case "R":
+        resetGame();
+        break;
+      default:
+        break;
+    }
+  });
+
+  startBtn.addEventListener("click", () => {
+    startGame();
+  });
+
+  restartBtn.addEventListener("click", () => {
+    resetGame();
+  });
+
+  soundToggle.addEventListener("change", (event) => {
+    audio.enabled = event.target.checked;
+    if (audio.enabled) {
+      audio.unlock();
+      audio.beep({ freq: 380, duration: 0.12, type: "sine", gain: 0.12 });
+    }
+  });
+
+  resetGrid();
+  refillQueue();
+  spawnPiece();
+  updateStats();
+  drawGrid();
+  drawPreview(nextCtx, { type: nextQueue[0], matrix: shapes[nextQueue[0]] });
+  drawPreview(holdCtx, hold);
+  updateStatus();
+  requestAnimationFrame(tick);
 </script>
 </body>
 </html>
